@@ -16,6 +16,28 @@ class Agent:
         self.cfg = cfg
         self.is_training_actor = is_training
         self.init_queues()
+        self.createSummaryWritter()
+        self.createCheckpoint()
+
+    def createSummaryWritter(self):
+        self.reward_agg = []
+        self.episode_agg = []
+        self.actor_dir = os.path.join(self.cfg.lrn.logdir,'actor_'+str(self.cfg.act.actor_id))
+        if True:
+            self.summary_writer = tf.summary.create_file_writer(self.actor_dir, flush_millis=20000, max_queue=1000)
+            #if FLAG_FILE.value:
+            #    mzutils.write_flags(FLAGS.__flags, FLAG_FILE.value)  # pylint: disable=protected-access
+        else:
+            self.summary_writer = tf.summary.create_noop_writer()
+
+    def createCheckpoint(self):
+        # We use the checkpoint to keep track of the actor_step and num_episodes.
+        self.actor_checkpoint = tf.train.Checkpoint(actor_step=self.actor_step, num_episodes=self.num_episode)
+        self.ckpt_manager = tf.train.CheckpointManager(checkpoint=self.actor_checkpoint, directory=self.actor_dir, max_to_keep=1)
+        if self.ckpt_manager.latest_checkpoint:
+            logging.info('Restoring actor checkpoint: %s', self.ckpt_manager.latest_checkpoint)
+            self.actor_checkpoint.restore(self.ckpt_manager.latest_checkpoint).assert_consumed()    
+
 
     @staticmethod
     def generateRandomString():
@@ -25,6 +47,7 @@ class Agent:
         self.save_dir = os.path.join(self.cfg.lrn.logdir,'episodes','actor_'+str(self.cfg.act.actor_id))
         os.makedirs(self.save_dir,exist_ok=True)
         self.actor_step = tf.Variable(0, dtype=tf.int64)
+        self.num_episode = tf.Variable(0, dtype=tf.int64)
         self.batch_queue = collections.deque()
 
     def create_training_samples(self, episode, start_idx=0):
@@ -105,5 +128,30 @@ class Agent:
             if self.is_training_actor and self.cfg.act.actor_enqueue_every > 0 and (len(episode.history) - last_enqueued_idx) >= self.cfg.act.actor_enqueue_every:
                 self.create_training_samples(episode, start_idx=last_enqueued_idx)
                 last_enqueued_idx = len(episode.history)
+        self.num_episode.assign_add(delta=1)
+        # Save to dataset
         self.create_training_samples(episode, start_idx=last_enqueued_idx)
         self.save_queue_to_file()
+        # Logging
+        self.reward_agg.append(episode.total_reward())
+        self.episode_agg.append(len(episode))
+        if self.actor_step.numpy() % self.cfg.act.actor_log_frequency == 0:
+            self.log(episode)
+
+    def log(self, episode):
+        with self.summary_writer.as_default():
+            tf.summary.experimental.set_step(self.actor_step)
+            tf.summary.scalar('actor/total_reward', np.mean(self.reward_agg))
+            tf.summary.scalar('actor/episode_length', np.mean(self.episode_agg))
+            tf.summary.scalar('actor/num_episodes', self.num_episode)
+            tf.summary.scalar('actor/step', self.actor_step)
+            if episode.mcts_visualizations:
+                tf.summary.text('actor/mcts_vis','\n\n'.join(episode.mcts_visualizations))
+                if True and self.cfg.act.mcts_vis_file is not None:
+                    # write it also into a txt file
+                    with tf.io.gfile.GFile(self.cfg.act.mcts_vis_file, 'a') as f:
+                        f.write('Step {}\n{}\n\n\n\n'.format(self.actor_step, '\n\n'.join(episode.mcts_visualizations)))
+        self.ckpt_manager.save()
+        self.reward_agg = []
+        self.episode_agg = []
+            
