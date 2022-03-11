@@ -30,11 +30,11 @@ class DataLoader:
     return tf.nest.flatten(data)
   
   def loadBatchesGen(self):
-    directory = pathlib.Path(self.cfg.mz.episode_dir).expanduser()
+    directory = pathlib.Path(self.cfg.lrn.logdir+'/episodes').expanduser()
     logging.info("Loading dataset from folder: %s",directory)
     cache = []
     while True:
-      for filename in directory.glob('*.pkl'):
+      for filename in directory.glob('**/*.pkl'):
         if filename not in cache:
           try:
             with filename.open('rb') as f:
