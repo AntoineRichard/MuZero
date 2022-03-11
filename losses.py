@@ -194,7 +194,7 @@ def compute_loss(config: LearnerConfig,
   #print(num_target_steps)
   #tf.print(num_target_steps)
   #del log_keys[:]
-  log_values = []
+  log_values = {}
 
   #logging
 
@@ -202,7 +202,7 @@ def compute_loss(config: LearnerConfig,
     # this is a python op so it happens only when this tf.function is compiled
     #log_keys.append(key)
     # this is a TF op
-    log_values.append(value)
+    log_values[key] = value
 
   log('losses/total', mean_loss)
   log('losses/weight_decay', l2_loss)
