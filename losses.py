@@ -32,25 +32,19 @@ def compute_pretrain_loss(config: LearnerConfig,
 
   total_loss = mean_loss + l2_loss
 
-  #del log_keys[:]
-  #log_values = []
-
+  log_values = {}
   # logging
+  def log(key, value):
+    log_values[key] = value
 
-  #def log(key, value):
-  #  # this is a python op so it happens only when this tf.function is compiled
-  #  log_keys.append(key)
-  #  # this is a TF op
-  #  log_values.append(value)
+  log('pretrain/losses/sample', mean_loss)
+  log('pretrain/losses/weight_decay', l2_loss)
+  log('pretrain/losses/total', total_loss)
+  if pretrain_logs is not None:
+    for ptk, ptv in pretrain_logs.items():
+      log('pretrain/{}'.format(ptk), tf.reduce_mean(ptv))
 
-  #log('pretrain/losses/sample', mean_loss)
-  #log('pretrain/losses/weight_decay', l2_loss)
-  #log('pretrain/losses/total', total_loss)
-  #if pretrain_logs is not None:
-  #  for ptk, ptv in pretrain_logs.items():
-  #    log('pretrain/{}'.format(ptk), tf.reduce_mean(ptv))
-
-  return total_loss#, log_values
+  return total_loss, log_values
 
 
 def compute_loss(config: LearnerConfig,
@@ -191,17 +185,10 @@ def compute_loss(config: LearnerConfig,
 
   mean_loss += l2_loss
 
-  #print(num_target_steps)
-  #tf.print(num_target_steps)
-  #del log_keys[:]
   log_values = {}
 
   #logging
-
   def log(key, value):
-    # this is a python op so it happens only when this tf.function is compiled
-    #log_keys.append(key)
-    # this is a TF op
     log_values[key] = value
 
   log('losses/total', mean_loss)
