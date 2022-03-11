@@ -31,7 +31,7 @@ class DataLoader:
   
   def loadBatchesGen(self):
     directory = pathlib.Path(self.cfg.mz.episode_dir).expanduser()
-    print(directory)
+    logging.info("Loading dataset from folder: %s",directory)
     cache = []
     while True:
       for filename in directory.glob('*.pkl'):
@@ -40,7 +40,7 @@ class DataLoader:
             with filename.open('rb') as f:
               batch = pickle.load(f)
           except Exception as e:
-            print(f'Could not load episode: {e}')
+            logging.warn(f'Could not load episode: {e}')
             continue
           cache.append(filename)
           priorities, *samples = batch
