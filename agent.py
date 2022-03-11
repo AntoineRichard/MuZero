@@ -8,6 +8,7 @@ import os
 import datetime
 
 import core as mzcore
+import string
 
 class Agent:
     def __init__(self, createEnvFn, cfg, is_training=True):
@@ -16,8 +17,13 @@ class Agent:
         self.is_training_actor = is_training
         self.init_queues()
 
+    @staticmethod
+    def generateRandomString():
+        return "".join([random.choice(list(string.ascii_letters)) for i in range(6)])
+
     def init_queues(self):
-        os.makedirs(os.path.join(self.cfg.mz.episode_dir,'actor_'+str(self.cfg.act.actor_id)),exist_ok=True)
+        self.save_dir = os.path.join(self.cfg.lrn.logdir,'episodes','actor_'+str(self.cfg.act.actor_id))
+        os.makedirs(self.save_dir,exist_ok=True)
         self.actor_step = tf.Variable(0, dtype=tf.int64)
         self.batch_queue = collections.deque()
 
@@ -59,7 +65,7 @@ class Agent:
     def save_queue_to_file(self):
         while len(self.batch_queue) >= self.cfg.lrn.batch_size:
             date = datetime.datetime.now().strftime('%d-%m-%Y_%HH%MM%SS')
-            filename = os.path.join(self.cfg.mz.episode_dir, 'actor_'+str(self.cfg.act.actor_id), date + '_episode.pkl')
+            filename = os.path.join(self.save_dir, date +'_'+self.generateRandomString()+'_episode.pkl')
             batch = [
                 self.batch_queue.popleft()
                 for _ in range(self.cfg.lrn.batch_size)
