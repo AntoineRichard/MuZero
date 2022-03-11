@@ -84,8 +84,20 @@ def main(argv):
     return agent.recurrent_inference(hidden_state, action)
 
   A = Agent(env.create_environment, config)
+
+  logdir = "/home/antoine/ws/muzero/test/learner"
+  ckpt = tf.train.Checkpoint(agent=agent)
+  manager = tf.train.CheckpointManager(ckpt, logdir, max_to_keep=10, keep_checkpoint_every_n_hours=6)
+  try:
+    ckpt.restore(manager.latest_checkpoint).assert_nontrivial_match()
+  except:
+    pass
   for i in range(2000):
     A.playEpisode(initial_inference, recurrent_inference, 0)
+    try:
+      ckpt.restore(manager.latest_checkpoint).assert_nontrivial_match()
+    except:
+      pass
 
 if __name__ == '__main__':
   app.run(main)

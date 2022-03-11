@@ -34,21 +34,24 @@ class DataLoader:
     logging.info("Loading dataset from folder: %s",directory)
     cache = []
     while True:
-      for filename in directory.glob('**/*.pkl'):
-        if filename not in cache:
-          try:
-            with filename.open('rb') as f:
-              batch = pickle.load(f)
-          except Exception as e:
-            logging.warn(f'Could not load episode: {e}')
-            continue
-          cache.append(filename)
-          priorities, *samples = batch
-          self.replay_buffer.insert(tuple(samples), priorities)
-          if self.replay_buffer.num_inserted <= self.cfg.lrn.replay_buffer_size:
-            logging.info('waiting for replay buffer to fill. Status:%d / %d', self.replay_buffer.num_inserted, self.cfg.lrn.replay_buffer_size)
-          elif self.cfg.lrn.debug:
-            logging.info('Replay buffer filled with %d samples', self.replay_buffer.num_inserted)
+      while True:
+        for filename in directory.glob('**/*.pkl'):
+          if filename not in cache:
+            try:
+              with filename.open('rb') as f:
+                batch = pickle.load(f)
+            except Exception as e:
+              logging.warn(f'Could not load episode: {e}')
+              continue
+            cache.append(filename)
+            priorities, *samples = batch
+            self.replay_buffer.insert(tuple(samples), priorities)
+            if self.replay_buffer.num_inserted <= self.cfg.lrn.replay_buffer_size:
+              logging.info('waiting for replay buffer to fill. Status:%d / %d', self.replay_buffer.num_inserted, self.cfg.lrn.replay_buffer_size)
+            elif self.cfg.lrn.debug:
+              logging.info('Replay buffer filled with %d samples', self.replay_buffer.num_inserted)
+        if self.replay_buffer.num_inserted >= self.cfg.lrn.replay_buffer_size:
+          break
       yield tuple(self.sample())
   
   def makeGenerator(self):
